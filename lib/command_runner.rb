@@ -71,7 +71,9 @@ module CommandRunner
       end
     end
 
-    # Run through all deadlines until command completes
+    # Run through all deadlines until command completes.
+    # We could merge this block into the selecting block above,
+    # but splitting like this saves us a Process.wait syscall per iteration.
     deadline_sequence.each do |point|
       while Time.now < point[:deadline]
         if Process.wait(io.pid, Process::WNOHANG)
@@ -79,7 +81,14 @@ module CommandRunner
           io.close
           return result
         else
-          sleep tick
+          IO.select([io], nil, nil, tick)
+          begin
+            data << io.read_nonblock(bufsize)
+          rescue IO::WaitReadable
+            # Ignore: tick time reached without io
+          rescue EOFError
+            # Child closed stdout (probably dead, but not necessarily)
+          end
         end
       end
 

@@ -44,7 +44,7 @@ class TestCommandRunner < Test::Unit::TestCase
                                    2 => Proc.new { proc_callbacks << 'proc2' },
                                       })
     assert_equal "", result[:out]
-    assert_equal Signal.list['KILL'], result[:status].termsig
+    assert_equal 9, result[:status].termsig
     assert_equal ['proc1', 'proc2', 'proc3'], proc_callbacks
   end
 
@@ -62,6 +62,17 @@ class TestCommandRunner < Test::Unit::TestCase
       # Expected
       assert_equal "KillMeNow", e.message
     end
+  end
+
+  def test_shell_no_stdout_preemption
+    result = CommandRunner.run('echo hello; sleep 2; echo world; sleep 2; echo OMG',
+      timeout: {
+          1 => Proc.new {|pid|  },
+          3 => 'KILL'
+      })
+
+    assert_equal "hello\nworld\n", result[:out]
+    assert_equal 9, result[:status].termsig
   end
 
 end
