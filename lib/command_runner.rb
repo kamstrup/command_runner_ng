@@ -10,10 +10,11 @@ module CommandRunner
   # specifying the signal to send, or a Proc to execute. The Proc
   # will be called with the child PID as argument.
   # These examples are equivalent:
-  #   run('sleep', '10', timeout: 5)
-  #   run('sleep', '10', timeout: {5 => 'KILL'})
-  #   run('sleep', '10', timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
-  #   run('sleep', '10', timeout: {
+  #   run('sleep 10', timeout: 5) # With a subshell
+  #   run(['sleep', '10'], timeout: 5) # No subshell in this one and the rest
+  #   run(['sleep', '10'], timeout: {5 => 'KILL'})
+  #   run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
+  #   run(['sleep', '10'], timeout: {
   #             5 => 'KILL',
   #             2 = Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
   #   })
