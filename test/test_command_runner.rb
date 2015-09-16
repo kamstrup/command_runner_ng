@@ -28,9 +28,9 @@ class TestCommandRunner < Test::Unit::TestCase
   end
 
   def test_shell_timeout_before_echo
-    result = CommandRunner.run('sleep 5; echo hello', timeout: {2 => 'QUIT'})
+    result = CommandRunner.run('sleep 5; echo hello', timeout: {2 => 'TERM'})
     assert_equal "", result[:out]
-    assert Signal.list['QUIT'], result[:status].stopsig
+    assert Signal.list['TERM'], result[:status].termsig
   end
 
   def test_no_shell_timeout_procs_in_order
