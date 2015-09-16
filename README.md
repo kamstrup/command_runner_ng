@@ -21,7 +21,7 @@ CommandRunner.run(['sleep', '10'], timeout: {5 => 'KILL'})
 CommandRunner.run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
 CommandRunner.run(['sleep', '10'], timeout: {
     5 => 'KILL',
-    2 = Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
+    2 => Proc.new {|pid| puts "Sending SIGKILL to PID #{pid} in 3s"}
 })
 ```
 

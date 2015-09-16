@@ -48,4 +48,20 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal ['proc1', 'proc2', 'proc3'], proc_callbacks
   end
 
+  def test_no_shell_raising_action
+    proc_callbacks = []
+
+    begin
+      CommandRunner.run("echo hello; sleep 10; echo world", timeout: {
+                                                              1 => Proc.new { proc_callbacks << 'proc1' },
+                                                              3 => Proc.new { proc_callbacks << 'proc3' },
+                                                              2 => Proc.new { raise "KillMeNow" },
+                                                          })
+      fail "Previous command should raise"
+    rescue => e
+      # Expected
+      assert_equal "KillMeNow", e.message
+    end
+  end
+
 end

@@ -16,11 +16,15 @@ module CommandRunner
   #   run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
   #   run(['sleep', '10'], timeout: {
   #             5 => 'KILL',
-  #             2 = Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
+  #             2 => Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
   #   })
   #
   # Returns a Hash with :out and :status. :out is a string with stdout
   # and stderr merged, and :status is a Process::Status.
+  #
+  # As a special case - if an action Proc raises an exception, the child
+  # will be killed with SIGKILL, cleaned up, and the exception rethrown
+  # to the caller of run.
   #
   def self.run(*args, timeout: nil)
     # These could be tweakable through vararg opts
@@ -84,7 +88,19 @@ module CommandRunner
       if action.is_a? String or action.is_a? Integer
         Process.kill(action, io.pid)
       elsif action.is_a? Proc
-        action.call(io.pid)
+        begin
+          action.call(io.pid)
+        rescue => e
+          # If the action block throws and error, clean up and rethrow
+          begin
+            Process.kill('KILL', io.pid)
+          rescue
+            # process already dead
+          end
+          Process.wait(io.pid)
+          io.close
+          raise e
+        end
       else
         # Given the assertions when building the deadline_sequence this should never be reached
         raise "Internal error in CommandRunnerNG. Child may be left unattended!"
