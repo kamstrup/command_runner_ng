@@ -24,3 +24,19 @@ CommandRunner.run(['sleep', '10'], timeout: {
     2 = Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
 })
 ```
+
+Inspecting the output - observe that 'world' never gets printed:
+```rb
+require 'command_runner'
+result = CommandRunner.run('echo hello; sleep 10; echo world', timeout: 3)
+puts result
+=> {:out=>"hello\n", :status=>#<Process::Status: pid 13205 SIGKILL (signal 9)>}
+```
+
+Why?
+----
+We have used too many subtly broken approaches to handling child processes in many different projects. In particular
+wrt timeouts, but also other issues.
+There are numerous examples scattered around StackExchange and pastebins that are also subtly broken. This
+project tries to collect the pieces and provide a simple Bug Free (TM) API for doing the common tasks that are
+not straight forward on the bare Ruby Process API.

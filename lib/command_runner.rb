@@ -2,7 +2,7 @@ module CommandRunner
 
   MAX_TIME = Time.new(2**63 -1)
 
-  # Like IO.spawn(), but block until the child completes.
+  # Like IO.popen(), but block until the child completes.
   # Takes an optional timeout parameter. If timeout is a
   # number the child will be killed after that many seconds
   # if it haven't completed. Alternatively it can be a Hash
