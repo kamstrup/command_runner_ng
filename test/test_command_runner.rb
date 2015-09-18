@@ -75,4 +75,12 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 9, result[:status].termsig
   end
 
+  def test_shell_with_background_subshell
+    result = CommandRunner.run('echo hello && (sleep 10 && echo world) &',
+                               timeout: 2)
+
+    assert_equal "hello\n", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
 end
