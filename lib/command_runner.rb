@@ -27,9 +27,8 @@ module CommandRunner
   # to the caller of run.
   #
   def self.run(*args, timeout: nil)
-    # These could be tweakable through vararg opts
+    # This could be tweakable through vararg opts
     tick = 0.1
-    bufsize = 4096
 
     now = Time.now
 
@@ -58,37 +57,19 @@ module CommandRunner
     io = IO.popen(*args, :err=>[:child, :out])
     data = ""
 
-    # Wait until stdout closes
-    while Time.now < deadline_sequence.first[:deadline] do
-      IO.select([io], nil, nil, tick)
-      begin
-        data << io.read_nonblock(bufsize)
-      rescue IO::WaitReadable
-        # Ignore: tick time reached without io
-      rescue EOFError
-        # Child closed stdout (probably dead, but not necessarily)
-        break
-      end
-    end
-
     # Run through all deadlines until command completes.
     # We could merge this block into the selecting block above,
     # but splitting like this saves us a Process.wait syscall per iteration.
+    eof = false
     deadline_sequence.each do |point|
       while Time.now < point[:deadline]
         if Process.wait(io.pid, Process::WNOHANG)
+          read_nonblock_safe!(io, data, tick)
           result = {out: data, status: $?}
           io.close
           return result
-        else
-          IO.select([io], nil, nil, tick)
-          begin
-            data << io.read_nonblock(bufsize)
-          rescue IO::WaitReadable
-            # Ignore: tick time reached without io
-          rescue EOFError
-            # Child closed stdout (probably dead, but not necessarily)
-          end
+        elsif !eof
+          eof = read_nonblock_safe!(io, data, tick)
         end
       end
 
@@ -116,12 +97,33 @@ module CommandRunner
       end
     end
 
-    # Either we didn't have a deadline, or none of the deadlines killed of the child.
+    # Either we didn't have a deadline, or none of the deadlines killed off the child.
     Process.wait(io.pid)
+    read_nonblock_safe!(io, data, tick)
     result = {out: data, status: $?}
     io.close
 
     result
+  end
+
+  private
+
+  # Read data async, appending to data_out,
+  # returning true on EOF, false otherwise
+  def self.read_nonblock_safe!(io, data_out, tick)
+    IO.select([io], nil, nil, tick)
+    begin
+      # Read all available data until EAGAIN or EOF
+      loop do
+        data_out << io.read_nonblock(4096)
+      end
+    rescue IO::WaitReadable
+      # Ignore: tick time reached without io
+      return false
+    rescue EOFError
+      # Child closed stdout (probably dead, but not necessarily)
+      return true
+    end
   end
 
 end

@@ -83,4 +83,21 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 0, result[:status].exitstatus
   end
 
+  def test_shell_stdout_to_null
+    result = CommandRunner.run('echo hello > /dev/null',
+                               timeout: 2)
+
+    assert_equal "", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
+  def test_shell_stdout_err_to_null
+    result = CommandRunner.run('echo hello > /dev/null 2>&1',
+                               timeout: 2)
+
+    assert_equal "", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
+
 end
