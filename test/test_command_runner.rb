@@ -99,5 +99,32 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 0, result[:status].exitstatus
   end
 
+  # Test disabled as it requires thin.
+  # Most perculiar behaviour have been observed when backgrounding thin through a subshell.
+  # Note that correct usage would be to daemonize it with -d.
+  # The intermidiate shell dies immediately, but stdout is never closed. Presumably thin
+  # inherits it, and we never get an EOF in CommandRunnerNG.
+  # Requires two files 'config.ru' and 'app.rb' to run (as well as thin and sinatra gems):
+  #
+  # # config.ru
+  # require './app'
+  # run HelloWorldApp
+  #
+  # # app.rb
+  # require 'sinatra'
+  #
+  # class HelloWorldApp < Sinatra::Base
+  #  get '/' do
+  #    "Hello, world!"
+  #  end
+  # end
+  #
+  #def test_thin_background
+  #  result = CommandRunner.run('thin start &',
+  #                             timeout: 5)
+  #
+  #  assert_equal 0, result[:status].exitstatus
+  #end
+
 
 end
