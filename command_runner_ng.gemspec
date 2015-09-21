@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'command_runner_ng'
-  s.version     = '0.0.1'
+  s.version     = '0.0.2'
   s.date        = '2015-09-16'
   s.summary     = "Command Runner NG"
   s.description = "Helper APIs for advanced interactions with subprocesses and shell commands"
