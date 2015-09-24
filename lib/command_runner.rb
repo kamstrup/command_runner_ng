@@ -26,7 +26,14 @@ module CommandRunner
   # will be killed with SIGKILL, cleaned up, and the exception rethrown
   # to the caller of run.
   #
-  def self.run(*args, timeout: nil)
+  def self.run(args, options={})
+    default_options = {
+      :timeout => nil
+    }
+
+    merged_options = default_options.merge(options)
+    timeout = merged_options[:timeout]
+
     # This could be tweakable through vararg opts
     tick = 0.1
 
@@ -54,7 +61,7 @@ module CommandRunner
     end
 
     # Spawn child, merging stderr into stdout
-    io = IO.popen(*args, :err=>[:child, :out])
+    io = IO.popen(args, {:err=>[:child, :out]})
     data = ""
 
     # Run through all deadlines until command completes.
