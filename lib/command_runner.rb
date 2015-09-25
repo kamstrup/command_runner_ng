@@ -26,7 +26,14 @@ module CommandRunner
   # will be killed with SIGKILL, cleaned up, and the exception rethrown
   # to the caller of run.
   #
-  def self.run(*args, timeout: nil)
+  def self.run(args, options={})
+    default_options = {
+      :timeout => nil
+    }
+
+    merged_options = default_options.merge(options)
+    timeout = merged_options[:timeout]
+
     # This could be tweakable through vararg opts
     tick = 0.1
 
@@ -35,7 +42,7 @@ module CommandRunner
     # Build deadline_sequence. A list of deadlines and corresponding actions to take
     if timeout
       if timeout.is_a? Numeric
-        deadline_sequence = [{deadline: now + timeout, action: 'KILL'}]
+        deadline_sequence = [{:deadline => now + timeout, :action => 'KILL'}]
       elsif timeout.is_a? Hash
         deadline_sequence = timeout.collect do |t, action|
           unless action.is_a? Integer or action.is_a? String or action.is_a? Proc
@@ -44,17 +51,17 @@ module CommandRunner
           unless t.is_a? Numeric
             raise "Unsupported timeout value '#{t}'. Must be a Numeric"
           end
-          {deadline: now + t, action: action}
+          {:deadline => now + t, :action => action}
         end.sort! { |a, b| a[:deadline] <=> b[:deadline]}
       else
         raise "Unsupported type for timeout paramter: #{timeout.class}"
       end
     else
-      deadline_sequence = [{deadline: MAX_TIME, action: 0}]
+      deadline_sequence = [{:deadline => MAX_TIME, :action => 0}]
     end
 
     # Spawn child, merging stderr into stdout
-    io = IO.popen(*args, :err=>[:child, :out])
+    io = IO.popen(args, {:err=>[:child, :out]})
     data = ""
 
     # Run through all deadlines until command completes.
@@ -65,7 +72,7 @@ module CommandRunner
       while Time.now < point[:deadline]
         if Process.wait(io.pid, Process::WNOHANG)
           read_nonblock_safe!(io, data, tick)
-          result = {out: data, status: $?}
+          result = {:out => data, :status => $?}
           io.close
           return result
         elsif !eof
@@ -100,7 +107,7 @@ module CommandRunner
     # Either we didn't have a deadline, or none of the deadlines killed off the child.
     Process.wait(io.pid)
     read_nonblock_safe!(io, data, tick)
-    result = {out: data, status: $?}
+    result = {:out => data, :status => $?}
     io.close
 
     result

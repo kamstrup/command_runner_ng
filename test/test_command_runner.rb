@@ -16,19 +16,19 @@ class TestCommandRunner < Test::Unit::TestCase
   end
 
   def test_shell_echo_sleep_timeout
-    result = CommandRunner.run('echo hello && sleep 5', timeout: 2)
+    result = CommandRunner.run('echo hello && sleep 5', {:timeout => 2})
     assert_equal "hello\n", result[:out]
     assert_equal 9, result[:status].termsig
   end
 
   def test_shell_echo_sleep_timeout_term
-    result = CommandRunner.run('echo hello && sleep 5', timeout: {2 => 'TERM'})
+    result = CommandRunner.run('echo hello && sleep 5', {:timeout => {2 => 'TERM'}})
     assert_equal "hello\n", result[:out]
     assert_equal Signal.list['TERM'], result[:status].termsig
   end
 
   def test_shell_timeout_before_echo
-    result = CommandRunner.run('sleep 5; echo hello', timeout: {2 => 'TERM'})
+    result = CommandRunner.run('sleep 5; echo hello', {:timeout => {2 => 'TERM'}})
     assert_equal "", result[:out]
     assert_equal Signal.list['TERM'], result[:status].termsig
   end
@@ -36,13 +36,13 @@ class TestCommandRunner < Test::Unit::TestCase
   def test_no_shell_timeout_procs_in_order
     proc_callbacks = []
 
-    result = CommandRunner.run(['sleep', '10'], timeout: {
+    result = CommandRunner.run(['sleep', '10'], {:timeout => {
                                    6 => Proc.new { proc_callbacks << 'proc6' },
                                    1 => Proc.new { proc_callbacks << 'proc1' },
                                    3 => Proc.new { proc_callbacks << 'proc3' },
                                    5 => 'KILL',
                                    2 => Proc.new { proc_callbacks << 'proc2' },
-                                      })
+                                      }})
     assert_equal "", result[:out]
     assert_equal 9, result[:status].termsig
     assert_equal ['proc1', 'proc2', 'proc3'], proc_callbacks
@@ -52,11 +52,11 @@ class TestCommandRunner < Test::Unit::TestCase
     proc_callbacks = []
 
     begin
-      CommandRunner.run("echo hello; sleep 10; echo world", timeout: {
+      CommandRunner.run("echo hello; sleep 10; echo world", {:timeout => {
                                                               1 => Proc.new { proc_callbacks << 'proc1' },
                                                               3 => Proc.new { proc_callbacks << 'proc3' },
                                                               2 => Proc.new { raise "KillMeNow" },
-                                                          })
+                                                          }})
       fail "Previous command should raise"
     rescue => e
       # Expected
@@ -66,10 +66,10 @@ class TestCommandRunner < Test::Unit::TestCase
 
   def test_shell_no_stdout_preemption
     result = CommandRunner.run('echo hello; sleep 2; echo world; sleep 2; echo OMG',
-      timeout: {
+      {:timeout => {
           1 => Proc.new {|pid|  },
           3 => 'KILL'
-      })
+      }})
 
     assert_equal "hello\nworld\n", result[:out]
     assert_equal 9, result[:status].termsig
@@ -77,7 +77,7 @@ class TestCommandRunner < Test::Unit::TestCase
 
   def test_shell_with_background_subshell
     result = CommandRunner.run('echo hello && (sleep 10 && echo world) &',
-                               timeout: 2)
+                               {:timeout => 2})
 
     assert_equal "hello\n", result[:out]
     assert_equal 0, result[:status].exitstatus
@@ -85,7 +85,7 @@ class TestCommandRunner < Test::Unit::TestCase
 
   def test_shell_stdout_to_null
     result = CommandRunner.run('echo hello > /dev/null',
-                               timeout: 2)
+                               {:timeout => 2})
 
     assert_equal "", result[:out]
     assert_equal 0, result[:status].exitstatus
@@ -93,7 +93,7 @@ class TestCommandRunner < Test::Unit::TestCase
 
   def test_shell_stdout_err_to_null
     result = CommandRunner.run('echo hello > /dev/null 2>&1',
-                               timeout: 2)
+                               {:timeout => 2})
 
     assert_equal "", result[:out]
     assert_equal 0, result[:status].exitstatus
