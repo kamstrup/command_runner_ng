@@ -3,6 +3,7 @@ module CommandRunner
   MAX_TIME = Time.new(2**63 -1)
 
   # Like IO.popen(), but block until the child completes.
+  #
   # Takes an optional timeout parameter. If timeout is a
   # number the child will be killed after that many seconds
   # if it haven't completed. Alternatively it can be a Hash
@@ -19,6 +20,9 @@ module CommandRunner
   #             2 => Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
   #   })
   #
+  # Takes an optional environment parameter (a Hash). The environment is
+  # populated with the keys/values of this parameter.
+  #
   # Returns a Hash with :out and :status. :out is a string with stdout
   # and stderr merged, and :status is a Process::Status.
   #
@@ -33,6 +37,7 @@ module CommandRunner
 
     merged_options = default_options.merge(options)
     timeout = merged_options[:timeout]
+    environment = options[:environment] || {}
 
     # This could be tweakable through vararg opts
     tick = 0.1
@@ -61,7 +66,7 @@ module CommandRunner
     end
 
     # Spawn child, merging stderr into stdout
-    io = IO.popen(args, {:err=>[:child, :out]})
+    io = IO.popen(environment, args, {:err=>[:child, :out]})
     data = ""
 
     # Run through all deadlines until command completes.
