@@ -5,7 +5,7 @@ module CommandRunner
   # Like IO.popen(), but block until the child completes.
   #
   # For convenience allows you to pass > 1 string args without a boxing array,
-  # to execute a command with arguments without a subshell. See exanples below.
+  # to execute a command with arguments without a subshell. See examples below.
   #
   # Takes an optional timeout parameter. If timeout is a
   # number the child will be killed after that many seconds
@@ -16,7 +16,7 @@ module CommandRunner
   #
   # These examples are equivalent:
   #   run('sleep 10', timeout: 5) # With a subshell
-  #   run('sleep', '10', timeout: 5) # Without subshell. Convenince API to avoid array boxing as below
+  #   run('sleep', '10', timeout: 5) # Without subshell. Convenience API to avoid array boxing as below
   #   run(['sleep', '10'], timeout: 5) # No subshell in this one and the rest
   #   run(['sleep', '10'], timeout: {5 => 'KILL'})
   #   run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})

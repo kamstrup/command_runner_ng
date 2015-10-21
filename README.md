@@ -23,7 +23,7 @@ The following are equivalent:
 require 'command_runner'
 
 CommandRunner.run('sleep 10', timeout: 5) # Spawns a subshell
-CommandRunner.run('sleep', '10', timeout: 5) # No subshell. Convenince API to avoid array boxing like next line:
+CommandRunner.run('sleep', '10', timeout: 5) # No subshell. Convenience API to avoid array boxing like next line:
 CommandRunner.run(['sleep', '10'], timeout: 5) # No subshell in this one and the rest
 CommandRunner.run(['sleep', '10'], timeout: {5 => 'KILL'})
 CommandRunner.run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
