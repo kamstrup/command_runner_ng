@@ -108,7 +108,7 @@ class TestCommandRunner < Test::Unit::TestCase
   def test_multi_string_convenience
     result = CommandRunner.run('ls', '-r', 'test')
 
-    assert result[:out].start_with? "test_command_runner_create.rb", "Unexpected output: #{result[:out]}"
+    assert result[:out].start_with?("test_command_runner_create.rb"), "Unexpected output: #{result[:out]}"
     assert_equal 0, result[:status].exitstatus
   end
 
