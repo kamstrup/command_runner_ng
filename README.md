@@ -10,10 +10,11 @@ Features:
 
 Usage
 -----
-Add the following to your ``Gemfile```:
-``rb
-gem'command_runner_ng'
+Add the following to your Gemfile:
+```rb
+gem 'command_runner_ng'
 ```
+
 
 Examples
 --------
