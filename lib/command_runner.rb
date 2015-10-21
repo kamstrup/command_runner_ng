@@ -4,20 +4,25 @@ module CommandRunner
 
   # Like IO.popen(), but block until the child completes.
   #
+  # For convenience allows you to pass > 1 string args without a boxing array,
+  # to execute a command with arguments without a subshell. See exanples below.
+  #
   # Takes an optional timeout parameter. If timeout is a
   # number the child will be killed after that many seconds
   # if it haven't completed. Alternatively it can be a Hash
   # of timeouts to actions. Each action can be a string or integer
   # specifying the signal to send, or a Proc to execute. The Proc
   # will be called with the child PID as argument.
+  #
   # These examples are equivalent:
   #   run('sleep 10', timeout: 5) # With a subshell
+  #   run('sleep', '10', timeout: 5) # Without subshell. Convenince API to avoid array boxing as below
   #   run(['sleep', '10'], timeout: 5) # No subshell in this one and the rest
   #   run(['sleep', '10'], timeout: {5 => 'KILL'})
   #   run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
   #   run(['sleep', '10'], timeout: {
   #             5 => 'KILL',
-  #             2 => Proc.new {|pid| puts "PID #{pid} getting SIGKILL in 3s"}
+  #             2 => Proc.new {|pid| puts "PID #{pid} geting SIGKILL in 3s"}
   #   })
   #
   # Takes an optional environment parameter (a Hash). The environment is
@@ -31,6 +36,10 @@ module CommandRunner
   # to the caller of run.
   #
   def self.run(*args, timeout: nil, environment: {})
+    # If args is an array of strings, allow that as a shorthand for [arg1, arg2, arg3]
+    if args.length > 1 && args.all? {|arg| arg.is_a? String}
+      args = [args]
+    end
 
     # This could be tweakable through vararg opts
     tick = 0.1
@@ -111,7 +120,59 @@ module CommandRunner
     result
   end
 
+  # Create a helper instance to launch a command with a given configuration.
+  # Invoke the command with the run() method. The configuration given to create()
+  # can be overriden on each invocation of run().
+  #
+  # The run() method of the helper instance must be invoked with a
+  #
+  # Examples:
+  # git = CommandRunner.create(['sudo', 'git'], timeout: 10, allowed_sub_commands: [:commit, :pull, :push])
+  # git.run(:pull, 'origin', 'master')
+  # git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
+  # git.run(:status) # will raise an error because :status is not in list of allowed commands
+  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [])
+    CommandInstance.new(args, timeout, environment, allowed_sub_commands)
+  end
+
   private
+
+  class CommandInstance
+
+    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands)
+      unless default_args.first.is_a? Array
+        raise "First argument must be an array of command line args. Found #{default_args}"
+      end
+
+      @default_args = default_args
+      @default_timeout = default_timeout
+      @default_environment = default_environment
+      @allowed_sub_commands = allowed_sub_commands
+    end
+
+    def run(*args, timeout: nil, environment: {})
+      args_list = *args
+
+      if !args_list.nil? && !args_list.empty? && args_list.first.is_a?(Array)
+        if args_list.length > 1
+          raise "Unsupported args list length: #{args_list.length}"
+        else
+          args_list = args_list.first
+        end
+      end
+
+      # Check sub command if needed
+      if !args_list.nil? && !args_list.empty? &&
+          !@allowed_sub_commands.empty? && !@allowed_sub_commands.include?(args_list.first)
+        raise "Illegal sub command '#{args_list.first}'. Expected #{allowed_sub_commands} (#{allowed_sub_commands.include?(args_list.first)})"
+      end
+
+      full_args = @default_args.dup
+      full_args[0] += args_list.map {|arg| arg.to_s }
+      CommandRunner.run(*full_args, timeout: (timeout || @default_timeout), environment: @default_environment.merge(environment))
+    end
+
+  end
 
   # Read data async, appending to data_out,
   # returning true on EOF, false otherwise

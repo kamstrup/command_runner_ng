@@ -10,7 +10,7 @@ class TestCommandRunner < Test::Unit::TestCase
   end
 
   def test_shell_echo_environment_variable
-    result = CommandRunner.run('echo hello $MESSAGE', {:environment => {'MESSAGE' => 'world'}})
+    result = CommandRunner.run('echo hello $MESSAGE', environment: {'MESSAGE' => 'world'})
     assert_equal "hello world\n", result[:out]
     assert_equal 0, result[:status].exitstatus
   end
@@ -22,7 +22,7 @@ class TestCommandRunner < Test::Unit::TestCase
   end
 
   def test_shell_echo_sleep_timeout
-    result = CommandRunner.run('echo hello && sleep 5', {:timeout => 2})
+    result = CommandRunner.run('echo hello && sleep 5', timeout: 2)
     assert_equal "hello\n", result[:out]
     assert_equal 9, result[:status].termsig
   end
@@ -102,6 +102,13 @@ class TestCommandRunner < Test::Unit::TestCase
                                {:timeout => 2})
 
     assert_equal "", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
+  def test_multi_string_convenience
+    result = CommandRunner.run('ls', '-r', 'test')
+
+    assert result[:out].start_with? "test_command_runner_create.rb"
     assert_equal 0, result[:status].exitstatus
   end
 

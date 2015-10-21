@@ -8,6 +8,13 @@ Features:
 
  * Run a command with a set of timeout rules
 
+Usage
+-----
+Add the following to your ``Gemfile```:
+``rb
+gem'command_runner_ng'
+```
+
 Examples
 --------
 The following are equivalent:
@@ -16,6 +23,7 @@ The following are equivalent:
 require 'command_runner'
 
 CommandRunner.run('sleep 10', timeout: 5) # Spawns a subshell
+CommandRunner.run('sleep', '10', timeout: 5) # No subshell. Convenince API to avoid array boxing like next line:
 CommandRunner.run(['sleep', '10'], timeout: 5) # No subshell in this one and the rest
 CommandRunner.run(['sleep', '10'], timeout: {5 => 'KILL'})
 CommandRunner.run(['sleep', '10'], timeout: {5 => Proc.new { |pid| Process.kill('KILL', pid)}})
@@ -31,6 +39,16 @@ require 'command_runner'
 result = CommandRunner.run('echo hello; sleep 10; echo world', timeout: 3)
 puts result
 => {:out=>"hello\n", :status=>#<Process::Status: pid 13205 SIGKILL (signal 9)>}
+```
+
+If you need to run the same command again and again, or the same command with a variation of sub-commands
+you can use the ```create``` method:
+```rb
+git = CommandRunner.create(['sudo', 'git'], timeout: 10, allowed_sub_commands: [:commit, :pull, :push])
+git.run(:pull, 'origin', 'master')
+git.run([:pull, 'origin', 'master'])
+git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
+git.run(:status) # will raise an error because :status is not in list of allowed commands 
 ```
 
 Why?
