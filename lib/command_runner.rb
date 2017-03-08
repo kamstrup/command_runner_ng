@@ -1,6 +1,6 @@
 module CommandRunner
 
-  MAX_TIME = Time.new(2**63 -1)
+  MAX_TIME = Time.new(2**63 - 1)
 
   # Like IO.popen(), but block until the child completes.
   #
@@ -35,7 +35,16 @@ module CommandRunner
   # will be killed with SIGKILL, cleaned up, and the exception rethrown
   # to the caller of run.
   #
-  def self.run(*args, timeout: nil, environment: {})
+  # By default stderr in the child is merged into its stdout. You can do any kind
+  # of advanced stream mapping by overriding the default options hash. The options are passed to Kernel.spawn.
+  # See https://ruby-doc.org/core-2.2.3/Kernel.html#method-i-spawn for details.
+  #
+  # Fx. redirecting stderr to /dev/null would look like:
+  #    run('ls', 'nosuchfile', options: {:err => "/dev/null"})
+  #
+  # All Kernel.spawn features, like setting umasks, process group, and are supported through the options hash.
+  #
+  def self.run(*args, timeout: nil, environment: {}, options: {:err=>[:child, :out]})
     # If args is an array of strings, allow that as a shorthand for [arg1, arg2, arg3]
     if args.length > 1 && args.all? {|arg| arg.is_a? String}
       args = [args]
@@ -68,7 +77,7 @@ module CommandRunner
     end
 
     # Spawn child, merging stderr into stdout
-    io = IO.popen(environment, *args, {:err=>[:child, :out]})
+    io = IO.popen(environment, *args, options)
     data = ""
 
     # Run through all deadlines until command completes.

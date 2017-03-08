@@ -9,6 +9,19 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 0, result[:status].exitstatus
   end
 
+  def test_shell_stderr_echo
+    # Verify that we merge stderr and stdout by default
+    result = CommandRunner.run('echo hello 1>&2')
+    assert_equal "hello\n", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
+  def test_shell_stderr_null_echo
+    result = CommandRunner.run('echo stderr 1>&2 && echo stdout', options: {:err => "/dev/null"})
+    assert_equal "stdout\n", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
   def test_shell_echo_environment_variable
     result = CommandRunner.run('echo hello $MESSAGE', environment: {'MESSAGE' => 'world'})
     assert_equal "hello world\n", result[:out]
