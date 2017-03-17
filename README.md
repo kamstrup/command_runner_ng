@@ -52,6 +52,26 @@ git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
 git.run(:status) # will raise an error because :status is not in list of allowed commands 
 ```
 
+Debugging and Logging
+---------
+If you need insight to what commands you're running you can pass CommandRunner an object responding to :puts
+such as $stdout, $stderr, the writing and of an IO.pipe, or a file opened for writing. CommandRunnerNG will
+log start, stop, end timeouts. Eg:
+
+```rb
+require 'command_runner'
+
+CommandRunner.run('ls /tmp', debug_log: $stdout)
+# Outputs:
+# CommandRunnerNG spawn: args=["ls /tmp"], timeout=, options: {:err=>[:child, :out]}, PID: 10973
+# CommandRunnerNG exit: PID: 10973, code: 0
+
+my_log = File.open('log.txt, 'a')
+CommandRunner.run('ls /tmp', debug_log: my_log) # Log appended to a file
+```
+
+
+
 Why?
 ----
 We have used too many subtly broken approaches to handling child processes in many different projects. In particular
