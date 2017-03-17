@@ -2,6 +2,8 @@ module CommandRunner
 
   MAX_TIME = Time.new(2**63 - 1)
 
+  DEFAULT_OPTIONS = {:err=>[:child, :out]}
+
   # Like IO.popen(), but block until the child completes.
   #
   # For convenience allows you to pass > 1 string args without a boxing array,
@@ -28,8 +30,9 @@ module CommandRunner
   # Takes an optional environment parameter (a Hash). The environment is
   # populated with the keys/values of this parameter.
   #
-  # Returns a Hash with :out and :status. :out is a string with stdout
-  # and stderr merged, and :status is a Process::Status.
+  # Returns a Hash with :out, :pid,  and :status. :out is a string with stdout
+  # and stderr merged, and :status is a Process::Status. The :pid field is the
+  # the PID the child process had when it ran.
   #
   # As a special case - if an action Proc raises an exception, the child
   # will be killed with SIGKILL, cleaned up, and the exception rethrown
@@ -44,7 +47,11 @@ module CommandRunner
   #
   # All Kernel.spawn features, like setting umasks, process group, and are supported through the options hash.
   #
-  def self.run(*args, timeout: nil, environment: {}, options: {:err=>[:child, :out]})
+  # Debugging: To help debugging your app you can set the debug_log parameter. It can be any old object responding
+  # to :puts. Fx. $stderr, $stdout, or the write end of an IO.pipe. CommandRunnerNG will put some info about
+  # all process start, stop, and timeouts here.
+  #
+  def self.run(*args, timeout: nil, environment: {}, debug_log: nil, options: DEFAULT_OPTIONS)
     # If args is an array of strings, allow that as a shorthand for [arg1, arg2, arg3]
     if args.length > 1 && args.all? {|arg| arg.is_a? String}
       args = [args]
@@ -78,6 +85,7 @@ module CommandRunner
 
     # Spawn child, merging stderr into stdout
     io = IO.popen(environment, *args, options)
+    debug_log.puts("CommandRunnerNG spawn: args=#{args}, timeout=#{timeout}, options: #{options}, PID: #{io.pid}") if debug_log.respond_to?(:puts)
     data = ""
 
     # Run through all deadlines until command completes.
@@ -88,7 +96,8 @@ module CommandRunner
       while Time.now < point[:deadline]
         if Process.wait(io.pid, Process::WNOHANG)
           read_nonblock_safe!(io, data, tick)
-          result = {:out => data, :status => $?}
+          result = {:out => data, :status => $?, pid: io.pid}
+          debug_log.puts("CommandRunnerNG exit: PID: #{io.pid}, code: #{result[:status].exitstatus}") if debug_log.respond_to?(:puts)
           io.close
           return result
         elsif !eof
@@ -98,6 +107,7 @@ module CommandRunner
 
       # Deadline for this point reached. Fire the action.
       action = point[:action]
+      debug_log.puts("CommandRunnerNG timeout: PID: #{io.pid}, action: #{action}") if debug_log.respond_to?(:puts)
       if action.is_a? String or action.is_a? Integer
         Process.kill(action, io.pid)
       elsif action.is_a? Proc
@@ -123,7 +133,9 @@ module CommandRunner
     # Either we didn't have a deadline, or none of the deadlines killed off the child.
     Process.wait(io.pid)
     read_nonblock_safe!(io, data, tick)
-    result = {:out => data, :status => $?}
+    result = {:out => data, :status => $?, pid: io.pid}
+    debug_log.puts("CommandRunnerNG exit: PID: #{io.pid}, code: #{result[:status].exitstatus}") if debug_log.respond_to?(:puts)
+
     io.close
 
     result
@@ -140,15 +152,15 @@ module CommandRunner
   # git.run(:pull, 'origin', 'master')
   # git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
   # git.run(:status) # will raise an error because :status is not in list of allowed commands
-  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [])
-    CommandInstance.new(args, timeout, environment, allowed_sub_commands)
+  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [], debug_log: nil, options: DEFAULT_OPTIONS)
+    CommandInstance.new(args, timeout, environment, allowed_sub_commands, debug_log, options)
   end
 
   private
 
   class CommandInstance
 
-    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands)
+    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands, debug_log, options)
       unless default_args.first.is_a? Array
         raise "First argument must be an array of command line args. Found #{default_args}"
       end
@@ -157,6 +169,8 @@ module CommandRunner
       @default_timeout = default_timeout
       @default_environment = default_environment
       @allowed_sub_commands = allowed_sub_commands
+      @debug_log = debug_log
+      @options = options
     end
 
     def run(*args, timeout: nil, environment: {})
@@ -178,7 +192,11 @@ module CommandRunner
 
       full_args = @default_args.dup
       full_args[0] += args_list.map {|arg| arg.to_s }
-      CommandRunner.run(*full_args, timeout: (timeout || @default_timeout), environment: @default_environment.merge(environment))
+      CommandRunner.run(*full_args,
+                        timeout: (timeout || @default_timeout),
+                        environment: @default_environment.merge(environment),
+                        debug_log: @debug_log,
+                        options: @options)
     end
 
   end
