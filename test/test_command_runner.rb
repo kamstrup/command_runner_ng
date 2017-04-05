@@ -125,6 +125,18 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 0, result[:status].exitstatus
   end
 
+  def test_debug_log
+    rd, wr = IO.pipe
+    result = CommandRunner.run('ls', 'test', debug_log: wr)
+    wr.close
+
+    assert result[:out].start_with?("test_command_runner"), "Unexpected output: #{result[:out]}"
+    assert_equal 0, result[:status].exitstatus
+    assert_equal "CommandRunnerNG spawn: args=[[\"ls\", \"test\"]], timeout=, options: {:err=>[:child, :out]}, PID: #{result[:pid]}\nCommandRunnerNG exit: PID: #{result[:pid]}, code: 0\n", rd.read
+  ensure
+    rd.close
+  end
+
   # Test disabled as it requires thin.
   # Most perculiar behaviour have been observed when backgrounding thin through a subshell.
   # Note that correct usage would be to daemonize it with -d.

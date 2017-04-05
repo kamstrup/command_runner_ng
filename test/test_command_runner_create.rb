@@ -80,4 +80,15 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 0, result[:status].exitstatus
     assert_equal "hello mundo\n", result[:out]
   end
+
+  def test_debug_log
+    rd, wr = IO.pipe
+    ls = CommandRunner.create(['ls'], debug_log: wr)
+
+    result = ls.run('test')
+    wr.close
+    assert_equal "CommandRunnerNG spawn: args=[[\"ls\", \"test\"]], timeout=, options: {:err=>[:child, :out]}, PID: #{result[:pid]}\nCommandRunnerNG exit: PID: #{result[:pid]}, code: 0\n", rd.read
+  ensure
+    rd.close
+  end
 end
