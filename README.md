@@ -54,9 +54,9 @@ git.run(:status) # will raise an error because :status is not in list of allowed
 
 Debugging and Logging
 ---------
-If you need insight to what commands you're running you can pass CommandRunner an object responding to :puts
-such as $stdout, $stderr, the writing and of an IO.pipe, or a file opened for writing. CommandRunnerNG will
-log start, stop, end timeouts. Eg:
+If you need insight to what commands you're running you can pass CommandRunner an object responding to ```:puts```
+such as $stdout, $stderr, the writing end of an IO.pipe, or a file opened for writing. CommandRunnerNG will
+log start, stop, and timeouts. Eg:
 
 ```rb
 require 'command_runner'
@@ -70,6 +70,10 @@ my_log = File.open('log.txt, 'a')
 CommandRunner.run('ls /tmp', debug_log: my_log) # Log appended to a file
 ```
 
+Or you can enable debug logging for all command line invocations like this:
+```rb
+CommandRunner.set_debug_log!($stderr)
+```
 
 
 Why?

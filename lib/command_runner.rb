@@ -49,9 +49,14 @@ module CommandRunner
   #
   # Debugging: To help debugging your app you can set the debug_log parameter. It can be any old object responding
   # to :puts. Fx. $stderr, $stdout, or the write end of an IO.pipe. CommandRunnerNG will put some info about
-  # all process start, stop, and timeouts here.
+  # all process start, stop, and timeouts here. To enable debug logging for all commands call
+  # CommandRunner.set_debug_log!($stderr) (or with some other object responding to :puts).
   #
   def self.run(*args, timeout: nil, environment: {}, debug_log: nil, options: DEFAULT_OPTIONS)
+    if debug_log.nil?
+      debug_log = @@global_debug_log
+    end
+
     # If args is an array of strings, allow that as a shorthand for [arg1, arg2, arg3]
     if args.length > 1 && args.all? {|arg| arg.is_a? String}
       args = [args]
@@ -156,7 +161,20 @@ module CommandRunner
     CommandInstance.new(args, timeout, environment, allowed_sub_commands, debug_log, options)
   end
 
+  # Log all command line invocations to a logger object responding to :puts. Set to nil to disable.
+  # Setting the :debug_log keyword argument on individual invocations of CommandRunner.run() overrides this value.
+  def self.set_debug_log!(logger)
+    if logger.respond_to?(:puts) || logger.nil?
+      @@global_debug_log = logger
+    else
+      raise ArgumentError.new("Logger '#{logger}' not responding to :puts")
+    end
+  end
+
   private
+
+  # Set to an object that respond to :puts to enable global debug logging for all
+  @@global_debug_log = nil
 
   class CommandInstance
 
