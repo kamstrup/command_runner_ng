@@ -45,6 +45,9 @@ module CommandRunner
   # Fx. redirecting stderr to /dev/null would look like:
   #    run('ls', 'nosuchfile', options: {:err => "/dev/null"})
   #
+  # For simple case of splitting stderr into a buffer separate from stdout you can pass
+  # the argument split_stderr: true. This will make an :err entry available in the result.
+  #
   # All Kernel.spawn features, like setting umasks, process group, and are supported through the options hash.
   #
   # Debugging: To help debugging your app you can set the debug_log parameter. It can be any old object responding
@@ -52,7 +55,7 @@ module CommandRunner
   # all process start, stop, and timeouts here. To enable debug logging for all commands call
   # CommandRunner.set_debug_log!($stderr) (or with some other object responding to :puts).
   #
-  def self.run(*args, timeout: nil, environment: {}, debug_log: nil, options: DEFAULT_OPTIONS)
+  def self.run(*args, timeout: nil, environment: {}, debug_log: nil, split_stderr: false, options: DEFAULT_OPTIONS)
     if debug_log.nil?
       debug_log = @@global_debug_log
     end
@@ -88,10 +91,18 @@ module CommandRunner
       deadline_sequence = [{:deadline => MAX_TIME, :action => 0}]
     end
 
+    if split_stderr
+      err_r, err_w = IO.pipe
+      errbuf = ""
+      options = options.merge({:err => err_w})
+    end
+
     # Spawn child, merging stderr into stdout
     io = IO.popen(environment, *args, options)
     debug_log.puts("CommandRunnerNG spawn: args=#{args}, timeout=#{timeout}, options: #{options}, PID: #{io.pid}") if debug_log.respond_to?(:puts)
     data = ""
+
+    err_w.close if split_stderr
 
     # Run through all deadlines until command completes.
     # We could merge this block into the selecting block above,
@@ -101,12 +112,18 @@ module CommandRunner
       while Time.now < point[:deadline]
         if Process.wait(io.pid, Process::WNOHANG)
           read_nonblock_safe!(io, data, tick)
+          read_nonblock_safe!(err_r, errbuf, 0) if split_stderr
           result = {:out => data, :status => $?, pid: io.pid}
+          if split_stderr
+            result[:err] = errbuf
+            err_r.close
+          end
           debug_log.puts("CommandRunnerNG exit: PID: #{io.pid}, code: #{result[:status].exitstatus}") if debug_log.respond_to?(:puts)
           io.close
           return result
         elsif !eof
           eof = read_nonblock_safe!(io, data, tick)
+          read_nonblock_safe!(err_r, errbuf, 0) if split_stderr
         end
       end
 
@@ -136,9 +153,19 @@ module CommandRunner
     end
 
     # Either we didn't have a deadline, or none of the deadlines killed off the child.
+    loop do
+      dead = read_nonblock_safe!(io, data, tick)
+      read_nonblock_safe!(err_r, errbuf, 0) if split_stderr
+      break if dead
+    end
     Process.wait(io.pid)
-    read_nonblock_safe!(io, data, tick)
+
     result = {:out => data, :status => $?, pid: io.pid}
+    if split_stderr
+      result[:err] = errbuf
+      err_r.close
+    end
+
     debug_log.puts("CommandRunnerNG exit: PID: #{io.pid}, code: #{result[:status].exitstatus}") if debug_log.respond_to?(:puts)
 
     io.close
@@ -157,8 +184,8 @@ module CommandRunner
   # git.run(:pull, 'origin', 'master')
   # git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
   # git.run(:status) # will raise an error because :status is not in list of allowed commands
-  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [], debug_log: nil, options: DEFAULT_OPTIONS)
-    CommandInstance.new(args, timeout, environment, allowed_sub_commands, debug_log, options)
+  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [], debug_log: nil, split_stderr: false, options: DEFAULT_OPTIONS)
+    CommandInstance.new(args, timeout, environment, allowed_sub_commands, debug_log, split_stderr, options)
   end
 
   # Log all command line invocations to a logger object responding to :puts. Set to nil to disable.
@@ -178,7 +205,7 @@ module CommandRunner
 
   class CommandInstance
 
-    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands, debug_log, options)
+    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands, debug_log, split_stderr, options)
       unless default_args.first.is_a? Array
         raise "First argument must be an array of command line args. Found #{default_args}"
       end
@@ -188,6 +215,7 @@ module CommandRunner
       @default_environment = default_environment
       @allowed_sub_commands = allowed_sub_commands
       @debug_log = debug_log
+      @split_stderr = split_stderr
       @options = options
     end
 
@@ -214,6 +242,7 @@ module CommandRunner
                         timeout: (timeout || @default_timeout),
                         environment: @default_environment.merge(environment),
                         debug_log: @debug_log,
+                        split_stderr: @split_stderr,
                         options: @options)
     end
 

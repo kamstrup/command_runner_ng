@@ -137,6 +137,12 @@ class TestCommandRunner < Test::Unit::TestCase
     rd.close
   end
 
+  def test_split_err
+    result = CommandRunner.run('echo OUT ; echo ERR 1>&2', split_stderr: true)
+    assert_equal "OUT\n", result[:out]
+    assert_equal "ERR\n", result[:err]
+  end
+
   # Test disabled as it requires thin.
   # Most perculiar behaviour have been observed when backgrounding thin through a subshell.
   # Note that correct usage would be to daemonize it with -d.

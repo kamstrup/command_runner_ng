@@ -52,6 +52,19 @@ git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
 git.run(:status) # will raise an error because :status is not in list of allowed commands 
 ```
 
+Redirection and Stderr Handling
+-----------
+By default stderr is merged into stdout. You can have it split out by passing `split_stderr: true`
+to the runner. Eg:
+```rb
+CommandRunner.run(['ls', '/nosuchdir'], split_stderr: true) # => {out: '', err: 'ls: No such file or directory' ... }
+```
+
+If you just want to silence stderr you can override all standard Kernel.spawn options:
+```rb
+CommandRunner.run(['ls', '/nosuchdir'], options: {err: '/dev/null})
+```
+
 Debugging and Logging
 ---------
 If you need insight to what commands you're running you can pass CommandRunner an object responding to ```:puts```

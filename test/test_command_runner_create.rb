@@ -91,4 +91,12 @@ class TestCommandRunner < Test::Unit::TestCase
   ensure
     rd.close
   end
+
+  def test_split_stderr
+    rb = CommandRunner.create(['ruby', '-e'], split_stderr: true)
+    result = rb.run('puts "OUT"; $stderr.puts "ERR"')
+
+    assert_equal "OUT\n", result[:out]
+    assert_equal "ERR\n", result[:err]
+  end
 end
