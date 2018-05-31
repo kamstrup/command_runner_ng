@@ -55,7 +55,7 @@ module CommandRunner
   # all process start, stop, and timeouts here. To enable debug logging for all commands call
   # CommandRunner.set_debug_log!($stderr) (or with some other object responding to :puts).
   #
-  def self.run(*args, timeout: nil, environment: {}, debug_log: nil, split_stderr: false, options: DEFAULT_OPTIONS)
+  def self.run(*args, timeout: nil, environment: {}, debug_log: nil, split_stderr: false, encoding: nil, options: DEFAULT_OPTIONS)
     if debug_log.nil?
       debug_log = @@global_debug_log
     end
@@ -99,7 +99,7 @@ module CommandRunner
 
     # Spawn child, merging stderr into stdout
     io = IO.popen(environment, *args, options)
-    debug_log.puts("CommandRunnerNG spawn: args=#{args}, timeout=#{timeout}, options: #{options}, PID: #{io.pid}") if debug_log.respond_to?(:puts)
+    debug_log.puts("CommandRunnerNG spawn: args=#{args}, timeout=#{timeout}, encoding=#{encoding}, options: #{options}, PID: #{io.pid}") if debug_log.respond_to?(:puts)
     data = ""
 
     err_w.close if split_stderr
@@ -113,9 +113,9 @@ module CommandRunner
         if Process.wait(io.pid, Process::WNOHANG)
           read_nonblock_safe!(io, data, tick)
           read_nonblock_safe!(err_r, errbuf, 0) if split_stderr
-          result = {:out => data, :status => $?, pid: io.pid}
+          result = {:out => ensure_command_output_encoded(data, args.join(" "), encoding), :status => $?, pid: io.pid}
           if split_stderr
-            result[:err] = errbuf
+            result[:err] = ensure_command_output_encoded(errbuf, args.join(" "), encoding)
             err_r.close
           end
           debug_log.puts("CommandRunnerNG exit: PID: #{io.pid}, code: #{result[:status].exitstatus}") if debug_log.respond_to?(:puts)
@@ -160,9 +160,9 @@ module CommandRunner
     end
     Process.wait(io.pid)
 
-    result = {:out => data, :status => $?, pid: io.pid}
+    result = {:out => ensure_command_output_encoded(data, args.join(" "), encoding), :status => $?, pid: io.pid}
     if split_stderr
-      result[:err] = errbuf
+      result[:err] = ensure_command_output_encoded(errbuf, args.join(" "), encoding)
       err_r.close
     end
 
@@ -171,6 +171,32 @@ module CommandRunner
     io.close
 
     result
+  end
+
+  # Forces encoding in the specified character set
+  # Defaults to no change (outputs in original encoding)
+  def self.ensure_command_output_encoded(string, command, encoding = nil)
+    return '' if !string
+
+    return string if encoding.nil?
+
+    firstPass = string.force_encoding(encoding)
+
+    return firstPass if firstPass.valid_encoding?
+
+    encoded = firstPass.encode(encoding, encoding,
+                          invalid: :replace,
+                          undef: :replace,
+                          replace: "")
+
+    return encoded if encoded.valid_encoding?
+
+    raise EncodingError, %Q{
+      Could not force #{encoding} encoding on this string:
+      #{string}
+      which is the output of this command:
+      #{command}
+    }
   end
 
   # Create a helper instance to launch a command with a given configuration.
@@ -184,8 +210,8 @@ module CommandRunner
   # git.run(:pull, 'origin', 'master')
   # git.run(:pull, 'origin', 'master', timeout: 2) # override default timeout of 10
   # git.run(:status) # will raise an error because :status is not in list of allowed commands
-  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [], debug_log: nil, split_stderr: false, options: DEFAULT_OPTIONS)
-    CommandInstance.new(args, timeout, environment, allowed_sub_commands, debug_log, split_stderr, options)
+  def self.create(*args, timeout: nil, environment: {}, allowed_sub_commands: [], debug_log: nil, split_stderr: false, encoding: nil, options: DEFAULT_OPTIONS)
+    CommandInstance.new(args, timeout, environment, allowed_sub_commands, debug_log, split_stderr, encoding, options)
   end
 
   # Log all command line invocations to a logger object responding to :puts. Set to nil to disable.
@@ -205,7 +231,7 @@ module CommandRunner
 
   class CommandInstance
 
-    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands, debug_log, split_stderr, options)
+    def initialize(default_args, default_timeout, default_environment, allowed_sub_commands, debug_log, split_stderr, encoding, options)
       unless default_args.first.is_a? Array
         raise "First argument must be an array of command line args. Found #{default_args}"
       end
@@ -216,6 +242,7 @@ module CommandRunner
       @allowed_sub_commands = allowed_sub_commands
       @debug_log = debug_log
       @split_stderr = split_stderr
+      @encoding = encoding
       @options = options
     end
 
@@ -243,6 +270,7 @@ module CommandRunner
                         environment: @default_environment.merge(environment),
                         debug_log: @debug_log,
                         split_stderr: @split_stderr,
+                        encoding: @encoding,
                         options: @options)
     end
 

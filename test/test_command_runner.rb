@@ -34,6 +34,18 @@ class TestCommandRunner < Test::Unit::TestCase
     assert_equal 0, result[:status].exitstatus
   end
 
+  def test_utf8_shell_echo
+    result = CommandRunner.run(['echo', 'hellò'], encoding: "UTF-8")
+    assert_equal "hellò\n", result[:out]
+    assert_equal 0, result[:status].exitstatus
+  end
+
+  def test_utf8_split_err
+    result = CommandRunner.run('echo ÒUT ; echo ÊRR 1>&2', split_stderr: true, encoding: "UTF-8")
+    assert_equal "ÒUT\n", result[:out]
+    assert_equal "ÊRR\n", result[:err]
+  end
+
   def test_shell_echo_sleep_timeout
     result = CommandRunner.run('echo hello && sleep 5', timeout: 2)
     assert_equal "hello\n", result[:out]
@@ -132,7 +144,7 @@ class TestCommandRunner < Test::Unit::TestCase
 
     assert result[:out].start_with?("test_command_runner"), "Unexpected output: #{result[:out]}"
     assert_equal 0, result[:status].exitstatus
-    assert_equal "CommandRunnerNG spawn: args=[[\"ls\", \"test\"]], timeout=, options: {:err=>[:child, :out]}, PID: #{result[:pid]}\nCommandRunnerNG exit: PID: #{result[:pid]}, code: 0\n", rd.read
+    assert_equal "CommandRunnerNG spawn: args=[[\"ls\", \"test\"]], timeout=, encoding=, options: {:err=>[:child, :out]}, PID: #{result[:pid]}\nCommandRunnerNG exit: PID: #{result[:pid]}, code: 0\n", rd.read
   ensure
     rd.close
   end

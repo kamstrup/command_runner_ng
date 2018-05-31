@@ -87,7 +87,7 @@ class TestCommandRunner < Test::Unit::TestCase
 
     result = ls.run('test')
     wr.close
-    assert_equal "CommandRunnerNG spawn: args=[[\"ls\", \"test\"]], timeout=, options: {:err=>[:child, :out]}, PID: #{result[:pid]}\nCommandRunnerNG exit: PID: #{result[:pid]}, code: 0\n", rd.read
+    assert_equal "CommandRunnerNG spawn: args=[[\"ls\", \"test\"]], timeout=, encoding=, options: {:err=>[:child, :out]}, PID: #{result[:pid]}\nCommandRunnerNG exit: PID: #{result[:pid]}, code: 0\n", rd.read
   ensure
     rd.close
   end
