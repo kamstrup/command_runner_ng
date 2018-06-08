@@ -35,13 +35,13 @@ class TestCommandRunner < Test::Unit::TestCase
   end
 
   def test_utf8_shell_echo
-    result = CommandRunner.run(['echo', 'hellò'], encoding: "UTF-8")
+    result = CommandRunner.run(['echo', 'hellò'], encoding: :safe)
     assert_equal "hellò\n", result[:out]
     assert_equal 0, result[:status].exitstatus
   end
 
   def test_utf8_split_err
-    result = CommandRunner.run('echo ÒUT ; echo ÊRR 1>&2', split_stderr: true, encoding: "UTF-8")
+    result = CommandRunner.run('echo ÒUT ; echo ÊRR 1>&2', split_stderr: true, encoding: :safe)
     assert_equal "ÒUT\n", result[:out]
     assert_equal "ÊRR\n", result[:err]
   end

@@ -178,13 +178,15 @@ module CommandRunner
   def self.ensure_command_output_encoded(string, command, encoding = nil)
     return '' if !string
 
-    return string if encoding.nil?
+    return string if encoding.nil? ||  encoding != :safe
 
-    firstPass = string.force_encoding(encoding)
+    encodingName = 'UTF-8'
+
+    firstPass = string.force_encoding(encodingName)
 
     return firstPass if firstPass.valid_encoding?
 
-    encoded = firstPass.encode(encoding, encoding,
+    encoded = firstPass.encode(encodingName, encodingName,
                           invalid: :replace,
                           undef: :replace,
                           replace: "")
@@ -192,7 +194,7 @@ module CommandRunner
     return encoded if encoded.valid_encoding?
 
     raise EncodingError, %Q{
-      Could not force #{encoding} encoding on this string:
+      Could not force #{encodingName} encoding on this string:
       #{string}
       which is the output of this command:
       #{command}
