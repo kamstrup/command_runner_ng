@@ -65,6 +65,16 @@ If you just want to silence stderr you can override all standard Kernel.spawn op
 CommandRunner.run(['ls', '/nosuchdir'], options: {err: '/dev/null})
 ```
 
+Encoding
+-----------
+If you need to ensure safely encoded output - you can force UTF-8 encoding by passing the :safe symbol. Eg:
+``rb
+require 'command_runner'
+result = CommandRunner.run('echo hellò', encoding: :safe) # => {out: 'hellò\n'}
+```
+
+By default we don't apply any encoding changed to the output.
+
 Debugging and Logging
 ---------
 If you need insight to what commands you're running you can pass CommandRunner an object responding to ```:puts```
