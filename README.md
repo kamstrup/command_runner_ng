@@ -68,7 +68,7 @@ CommandRunner.run(['ls', '/nosuchdir'], options: {err: '/dev/null})
 Encoding
 -----------
 If you need to ensure safely encoded output - you can force UTF-8 encoding by passing the :safe symbol. Eg:
-``rb
+```rb
 require 'command_runner'
 result = CommandRunner.run('echo hellò', encoding: :safe) # => {out: 'hellò\n'}
 ```
